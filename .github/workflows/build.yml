@@ -1,0 +1,102 @@
+name: Build VSCodium AppImage
+
+on:
+  # schedule:
+  #   # Run weekly on Sunday at 03:30 UTC (adjust as needed)
+  #   - cron: '30 3 * * 0'
+  workflow_dispatch: # Allows manual triggering
+  # push:
+  #   tags:
+  #     - 'v*' # Trigger on version tags (optional, for release builds)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # Use a standard Linux runner
+
+    steps:
+      - name: Checkout Builder Repo
+        uses: actions/checkout@v4 # Checks out your VSCodium-AppImage repo
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          # Dependencies needed by VSCodium build itself (check VSCodium docs for current list!)
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git libx11-dev libxkbfile-dev libsecret-1-dev \
+            python3 python3-pip fakeroot rpm libarchive-tools
+          # Dependencies for AppImage creation
+          sudo apt-get install -y --no-install-recommends fuse libfuse2
+
+      - name: Set up Node.js and Yarn
+        uses: actions/setup-node@v4
+        with:
+          # Check VSCodium repo for required Node.js version
+          node-version: '18' # Example, verify this!
+      - run: npm install -g yarn # Install yarn globally
+
+      - name: Clone VSCodium Repository
+        # Clone specific tag or latest commit - adjust as needed
+        # Using --depth=1 for faster cloning
+        run: git clone --depth=1 https://github.com/VSCodium/vscodium.git
+
+      - name: Build VSCodium
+        working-directory: ./vscodium
+        run: |
+          yarn # Install dependencies
+          # Run the build command for Linux x64 standalone
+          # This command might change! Check VSCodium's package.json or build scripts.
+          yarn gulp vscode-linux-x64-min
+
+      # --- AppImage Packaging Steps ---
+
+      - name: Download AppImage Tools
+        run: |
+          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          chmod +x linuxdeploy appimagetool
+
+      - name: Prepare AppDir
+        run: |
+          mkdir AppDir
+          # The output directory from the VSCodium build (check build output if this path is wrong)
+          # Copy the built VSCodium files into the AppDir structure
+          cp -r ./vscodium/VSCode-linux-x64/* ./AppDir/
+
+          # Copy the .desktop file and icon from *your* repo into the AppDir
+          cp ./vscodium.desktop ./AppDir/
+          cp ./vscodium.png ./AppDir/ # Ensure this matches your icon filename
+
+      - name: Run linuxdeploy to Bundle Dependencies
+        run: |
+          # Set executable path relative to AppDir root
+          local_executable_path="codium" # Adjust if the main executable name is different
+
+          # Run linuxdeploy: Bundles libs, creates AppRun, integrates desktop/icon
+          ./linuxdeploy --appdir AppDir \
+            --executable "${local_executable_path}" \
+            --desktop-file ./AppDir/vscodium.desktop \
+            --icon-file ./AppDir/vscodium.png \
+            --output appimage \
+            --create-update-information # Important for delta updates
+
+          # Rename the output AppImage (optional but recommended)
+          # Extract VSCodium version (e.g., from package.json) - This part needs refinement
+          # For now, using a generic name
+          mv VSCodium*.AppImage VSCodium-x86_64.AppImage || echo "Rename failed, using default name."
+
+
+      - name: Upload AppImage as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VSCodium-AppImage
+          path: ./*.AppImage # Uploads the generated AppImage
+
+      # --- Optional: Create GitHub Release ---
+      # This step usually runs only on tag pushes
+      # - name: Create Release and Upload AppImage
+      #   if: startsWith(github.ref, 'refs/tags/') # Only run for tags
+      #   uses: softprops/action-gh-release@v1
+      #   with:
+      #     files: ./*.AppImage
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Needs this token to create releases
