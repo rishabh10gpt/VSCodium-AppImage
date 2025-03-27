@@ -34,23 +34,19 @@ jobs:
           node-version: '18' # Example, verify this!
       - run: npm install -g yarn # Install yarn globally
       
-      - name: Clone VSCodium Repository
+      - name: Clone VSCodium Builder Repository # Renamed for clarity
         run: git clone --depth=1 https://github.com/VSCodium/vscodium.git
-        
-      - name: Install VSCodium Dependencies # <--- Step 1: Install Deps
-        working-directory: ./vscodium
-        run: |
-          echo "--- Installing dependencies in: $(pwd) ---"
-          yarn install # Use 'yarn install' explicitly for clarity
 
-      - name: Build VSCodium Executable # <--- Step 2: Build
-        working-directory: ./vscodium
+      # --- NEW Build Step using VSCodium's script ---
+      - name: Run VSCodium Build Script
+        working-directory: ./vscodium # Run from inside the cloned repo
         run: |
-          echo "--- Running build in: $(pwd) ---"
-          echo "--- Listing files before build ---"
-          ls -la
-          # Run the build command for Linux x64 standalone
-          yarn gulp vscode-linux-x64-min
+          echo "--- Starting VSCodium build script ---"
+          # Execute the main build script.
+          # It should handle fetching VSCode source and building.
+          # Check VSCodium's own CI/docs for the exact arguments if needed.
+          # The '--targets' flag seems common.
+          ./build.sh --targets=linux-x64-min
 
       # --- AppImage Packaging Steps ---
 
