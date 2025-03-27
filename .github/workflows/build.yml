@@ -33,7 +33,10 @@ jobs:
           # Check VSCodium repo for required Node.js version
           node-version: '18' # Example, verify this!
       - run: npm install -g yarn # Install yarn globally
-
+      
+      - name: Clone VSCodium Repository
+        run: git clone --depth=1 https://github.com/VSCodium/vscodium.git
+        
       - name: Install VSCodium Dependencies # <--- Step 1: Install Deps
         working-directory: ./vscodium
         run: |
