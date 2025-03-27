@@ -34,17 +34,19 @@ jobs:
           node-version: '18' # Example, verify this!
       - run: npm install -g yarn # Install yarn globally
 
-      - name: Clone VSCodium Repository
-        # Clone specific tag or latest commit - adjust as needed
-        # Using --depth=1 for faster cloning
-        run: git clone --depth=1 https://github.com/VSCodium/vscodium.git
-
-      - name: Build VSCodium
+      - name: Install VSCodium Dependencies # <--- Step 1: Install Deps
         working-directory: ./vscodium
         run: |
-          yarn # Install dependencies
+          echo "--- Installing dependencies in: $(pwd) ---"
+          yarn install # Use 'yarn install' explicitly for clarity
+
+      - name: Build VSCodium Executable # <--- Step 2: Build
+        working-directory: ./vscodium
+        run: |
+          echo "--- Running build in: $(pwd) ---"
+          echo "--- Listing files before build ---"
+          ls -la
           # Run the build command for Linux x64 standalone
-          # This command might change! Check VSCodium's package.json or build scripts.
           yarn gulp vscode-linux-x64-min
 
       # --- AppImage Packaging Steps ---
